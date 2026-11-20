@@ -137,6 +137,7 @@ const CONFIG = {
   growPerFood: 1,
   wrapWalls: false,
   pointsPerFood: 10,
+  itemEdgeMargin: 1,      // berries & portal never spawn this many cells from the wall
 
   // --- portal + multiplication ---
   portalEveryFoods: 3,
@@ -442,10 +443,15 @@ const occupied = (x, y) =>
   (food && food.x === x && food.y === y) ||
   (portal && portal.x === x && portal.y === y);
 function randomFreeCell(minDistFromHead = 0) {
-  const h = snake[0], free = [];
-  for (let y = 0; y < H; y++) for (let x = 0; x < W; x++)
-    if (!occupied(x, y) && Math.abs(x - h.x) + Math.abs(y - h.y) >= minDistFromHead) free.push({ x, y });
-  return free.length ? free[Math.floor(Math.random() * free.length)] : null;
+  const h = snake[0], m = CONFIG.itemEdgeMargin;
+  const pick = (margin, minDist) => {
+    const free = [];
+    for (let y = margin; y < H - margin; y++) for (let x = margin; x < W - margin; x++)
+      if (!occupied(x, y) && Math.abs(x - h.x) + Math.abs(y - h.y) >= minDist) free.push({ x, y });
+    return free.length ? free[Math.floor(Math.random() * free.length)] : null;
+  };
+  // keep items off the edge; relax the rules only if the snake fills the inner area
+  return pick(m, minDistFromHead) || pick(m, 0) || pick(0, 0);
 }
 function updatePortalHud() {
   toPortalEl.textContent = portal ? 'AUKI' : `${CONFIG.portalEveryFoods - foodsSincePortal}`;
