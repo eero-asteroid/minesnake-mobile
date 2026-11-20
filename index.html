@@ -24,18 +24,25 @@
   .stat.portal b { color: #e2a6ff; }
   #pauseBtn { width: 52px; flex: none; background: rgba(0,0,0,.45); color: #fff; font: 700 20px "Courier New", monospace; }
 
-  /* ---- D-pad: inverted-T, big buttons; the whole pad area is touchable ---- */
+  /* ---- D-pad: big see-through buttons; the whole pad area is touchable ---- */
   :root { --bw: min(calc((100vw - 40px) / 3), 132px); --bh: 82px; }
   #pad { position: fixed; left: 50%; bottom: calc(env(safe-area-inset-bottom) + 4px); transform: translateX(-50%);
-    display: grid; grid-template-columns: repeat(3, var(--bw)); grid-template-rows: repeat(2, var(--bh)); gap: 6px;
-    padding: 8px; touch-action: none; }
-  #pad button { background: rgba(0,0,0,.4); color: #fff; font-size: 34px; padding: 0; pointer-events: none; }
+    display: grid; grid-template-columns: repeat(3, var(--bw)); gap: 6px; padding: 8px; touch-action: none; }
+  #pad button { background: rgba(0,0,0,.22); color: rgba(255,255,255,.9); font-size: 34px; padding: 0; pointer-events: none;
+    border-color: rgba(20,20,20,.55); box-shadow: inset 3px 3px 0 rgba(255,255,255,.12), inset -3px -3px 0 rgba(0,0,0,.2);
+    text-shadow: 2px 2px 0 rgba(0,0,0,.5); }
   #pad button.on { background: rgba(255,255,255,.4); transform: scale(.96); }
-  #pad [data-d=up] { grid-area: 1 / 2; } #pad [data-d=left] { grid-area: 2 / 1; }
-  #pad [data-d=down] { grid-area: 2 / 2; } #pad [data-d=right] { grid-area: 2 / 3; }
+  /* cross */
+  #pad.cross { grid-template-rows: repeat(3, var(--bh)); }
+  #pad.cross [data-d=up] { grid-area: 1 / 2; } #pad.cross [data-d=left] { grid-area: 2 / 1; }
+  #pad.cross [data-d=right] { grid-area: 2 / 3; } #pad.cross [data-d=down] { grid-area: 3 / 2; }
+  /* inverted T */
+  #pad.t { grid-template-rows: repeat(2, var(--bh)); }
+  #pad.t [data-d=up] { grid-area: 1 / 2; } #pad.t [data-d=left] { grid-area: 2 / 1; }
+  #pad.t [data-d=down] { grid-area: 2 / 2; } #pad.t [data-d=right] { grid-area: 2 / 3; }
   #pad[hidden] { display: none; }
   @media (orientation: landscape) and (max-height: 600px) {
-    :root { --bw: 76px; --bh: 66px; }
+    :root { --bw: 72px; --bh: 62px; }
     #hud { max-width: 520px; }
     #pad { left: auto; transform: none; right: calc(env(safe-area-inset-right) + 6px); }
   }
@@ -124,9 +131,9 @@ const CONFIG = {
   gridW: 12,              // cells across (portrait-friendly)
   gridH: 18,              // cells deep
   startLength: 4,
-  startTickMs: 190,       // ms per move at start (lower = faster)
-  minTickMs: 85,
-  speedupPerFood: 3,
+  startTickMs: 250,       // ms per move at start (lower = faster)
+  minTickMs: 120,         // fastest possible
+  speedupPerFood: 2,      // ms faster per food eaten
   growPerFood: 1,
   wrapWalls: false,
   pointsPerFood: 10,
@@ -143,6 +150,8 @@ const CONFIG = {
 
   // --- mobile controls ---
   showDpad: true,         // on-screen arrow buttons (swipe works anywhere too)
+  padLayout: 'cross',     // 'cross' or 't' (inverted T, like keyboard arrows)
+  padOverlapsBoard: true, // let the pad's top row sit over the board so the board stays big
   swipeThresholdPx: 22,   // finger movement needed to register a turn
   vibrate: true,          // haptic buzz on eat / portal / crash (Android)
 
@@ -163,6 +172,7 @@ const msgEl = $('msg'), msgTitle = $('msgTitle'), msgSub = $('msgSub');
 const quizEl = $('quiz'), qprog = $('qprog'), qtext = $('qtext'), qans = $('qans'), qfb = $('qfb'), qdots = $('qdots');
 const padEl = $('pad'), hudEl = $('hud'), pauseBtn = $('pauseBtn');
 padEl.hidden = !CONFIG.showDpad;
+padEl.className = CONFIG.padLayout === 't' ? 't' : 'cross';
 const buzz = p => { if (CONFIG.vibrate && navigator.vibrate) try { navigator.vibrate(p); } catch (e) {} };
 
 // ---------------------------------------------------------------
@@ -267,7 +277,12 @@ function fitCamera() {
   let botPx = 12, rightPx = 8;
   if (CONFIG.showDpad) {
     const r = padEl.getBoundingClientRect();
-    if (r.left > vw / 2 + 20) rightPx = vw - r.left + 8; else botPx = vh - r.top + 6;
+    if (r.left > vw / 2 + 20) rightPx = vw - r.left + 8;
+    else {
+      botPx = vh - r.top + 6;
+      // allow the top row of the pad to cover the board (buttons are see-through)
+      if (CONFIG.padOverlapsBoard) botPx -= padEl.querySelector('[data-d=up]').getBoundingClientRect().height + 6;
+    }
   }
   const yTop = 1 - 2 * topPx / vh, yBot = -1 + 2 * botPx / vh;
   const xL = -1 + 2 * 8 / vw, xR = 1 - 2 * rightPx / vw;
